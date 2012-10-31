@@ -29,7 +29,7 @@ why:    DO x=1,int(sqrt(float(n))),1
                 ENDIF
                 CYCLE why
             ENDIF
-            DO j=2,int(sqrt(float(xy)))+1,1 !check if xy is prime
+            DO j=2,int(sqrt(float(xy))),1 !check if xy is prime
                 IF (mod(xy,j) == 0) THEN
                     CYCLE why
                 ENDIF
