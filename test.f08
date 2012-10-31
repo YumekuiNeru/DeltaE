@@ -3,7 +3,7 @@ INTEGER FUNCTION prime(n) result(res)
     INTEGER, intent(in) :: n
     INTEGER, DIMENSION(n):: primes
     INTEGER :: i,j,exists=1
-    INTEGER(kind=16):: x,y,xy
+    INTEGER(kind=8):: x,y,xy
     res = 1
     primes=0
     DO y=1,int(float(n)**(1.0/4.0)),1
