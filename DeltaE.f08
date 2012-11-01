@@ -45,9 +45,10 @@ CONTAINS
         INTEGER :: i
         
         
-        data component /0.4124,0.2126,0.0193,&
-                        0.3576,0.7152,0.1192,& !<-- do not read this as a matrix
-                        0.1805,0.0722,0.9505/
+        !sRGB D65
+        data component /0.4124564,0.2126729,0.0193339,&
+                        0.3575761,0.7151522,0.1191920,& !<-- do not read this as a matrix
+                        0.1804375,0.0721750,0.9503041/
         !component(1,:) = (/0.4124,0.3576,0.1805/)
         !component(2,:) = (/0.2126,0.7152,0.0722/) ! <-- Matrix will look like this and stuffs =w=
         !component(3,:) = (/0.0193,0.1192,0.9505/)
@@ -133,7 +134,6 @@ CONTAINS
         
         a1p = rL(2) + (rL(2)/2.0)*(1.0-sqrt((Cbar**7)/((Cbar**7)+(25.0**7))))
         a2p = pL(2) + (pL(2)/2.0)*(1.0-sqrt((Cbar**7)/((Cbar**7)+(25.0**7))))
-        
         C1p = sqrt((a1p**2) + (rL(3)**2))
         C2p = sqrt((a2p**2) + (pL(3)**2))
         dCp = C2p - C1p
@@ -145,7 +145,7 @@ CONTAINS
             h1p = atan2(rL(3),a1p)
             !print*,h1p,"h1p"
             IF (h1p < 0) THEN
-                h1p = 2*pi - h1p
+                h1p = h1p + 2*pi
             ENDIF
             h1p = mod((180.0/pi)*h1p, 360.0)
             !print*,h1p,"h1p"
@@ -157,7 +157,7 @@ CONTAINS
             h2p = atan2(pL(3),a2p)
             !print*,h2p,"h2p"
             IF (h2p < 0) THEN
-                h2p = 2*pi - h2p
+                h2p = h2p + 2*pi
             ENDIF
             h2p = mod((180.0/pi)*h2p, 360.0)
             !print*,h2p,"h2p"
@@ -188,7 +188,6 @@ CONTAINS
         ELSEIF (abs(h1p - h2p) > 180.0 .AND. ((h1p + h2p) >= 360.0)) THEN
             HHbarp = (h1p + h2p - 360.0)/2.0
         ENDIF
-        print*,"HHbarp:",hhbarp
         
         T = 1.0 - 0.17*cos(rad(HHbarp-30.0))+0.24*cos(rad(2*HHbarp))+0.32*cos(rad(3*HHbarp+6.0))-0.20*cos(rad(4*HHbarp-63.0))
         
@@ -197,8 +196,10 @@ CONTAINS
         S_H = 1.0 + 0.015*Cbarp*T
         
         R_C = 2*sqrt((Cbarp**7)/((Cbarp**7)+25.0**7))
-        d0 = 30**(-(((HHbarp-275.0)/25.0)**2))
-        R_T = -sin(rad(2*d0))*R_C
+        print*,R_C
+        d0 = 30.0**(-(((HHbarp-275.0)/25.0)**2))
+        print*,d0
+        R_T = -R_C*sin(rad(2*d0))
         !R_T = -2.0*sqrt((Cbarp**7)/((Cbarp**7)+(25.0**7)))*sin(60.0**(-((HHbarp-275.0)/(25))**2))
         
         dE00 = sqrt(((dLp/(S_L))**2) + ((dCp/(S_C))**2) + ((dHp/S_h)**2) + R_T*((dCp/S_C)*(dHp/S_H)))
