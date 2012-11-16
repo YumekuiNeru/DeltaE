@@ -1,11 +1,8 @@
 PROGRAM DeltaE
     IMPLICIT none
-    REAL(kind=8), DIMENSION(3) :: sRGB1, sRGB2, XYZ1, XYZ2
-    REAL(kind=8), DIMENSION(5) :: LABCH1, LABCH2
+    REAL(kind=8), DIMENSION(3) :: sRGB1, sRGB2, XYZ1, XYZ2, LAB1, LAB2
     INTEGER, DIMENSION(3) :: RGB1,RGB2
     REAL(kind=8) :: diff
-    
-    
     !RGB1 = (/136, 220, 73/) !reference colour
     !RGB2 = (/88, 99, 111/) !colour to compare to
     
@@ -15,32 +12,44 @@ PROGRAM DeltaE
     !XYZ1 = sRGB2XYZ(sRGB1)
     !XYZ2 = sRGB2XYZ(sRGB2)
     
-    !LABCH1 = XYZ2LABCH(XYZ1)
-    !LABCH2 = XYZ2LABCH(XYZ2)
-    REAL(kind=8) :: l1,a1,b1,c1, l2,a2,b2,c2
-    l1 = 50.000
-    l2 = l1
-    a1 = 2.6772
-    a2 = 0.0000
-    b1 = -79.7751
-    b2 = -82.7485
-    c1 = sqrt(a1**2 + b1**2)
-    c2 = sqrt(a2**2 + b2**2)
-    LABCH1 = (/l1,a1,b1,c1,0.0_8/)
-    LABCH2 = (/l2,a2,b2,c2,0.0_8/)
-    
-    diff = dE_single(LABCH1, LABCH2)
+    !LAB1 = XYZ2LAB(XYZ1)
+    !LAB2 = XYZ2LAB(XYZ2)
+    call test()
+    !diff = dE_single(LAB1, LAB2)
     !PRINT*,""
     !PRINT*,"Colour 1:",RGB1
-    !PRINT*,"Colour 1:",LABCH1
+    !PRINT*,"Colour 1:",LAB1
     
     !PRINT*,"Colour 2:",RGB2
-    !PRINT*,"Colour 2:",LABCH2
+    !PRINT*,"Colour 2:",LAB2
     
     !PRINT*,"Colourdifference (lower=less diff): ",diff
     
 CONTAINS
-        FUNCTION RGB2sRGB(RGB) result(sRGB)
+    SUBROUTINE test()
+        IMPLICIT None
+        REAL(KIND=8), DIMENSION(34,39) :: cases
+        REAL(KIND=8), DIMENSION(3) :: temp1, temp2
+        REAL(KIND=8) :: deltares
+        INTEGER :: i
+        
+        !L1,a1,b1,L2,a2,b2,C1,C2,C_ave,G,L1',a1',b1',L2',a2',b2',C1',C2',
+        !h1',h2',dh',dL',dC',dH',L'_ave,C'_ave,h'_ave,(L'_ave-50)^2,
+        !S_L,S_C,T,S_H,dTheta,R_C,R_T,dL'/k_L/S_L,dC'/k_C/S_C,dH'/k_H/S_H,dE2000    
+        OPEN (13,file="testcases.csv")
+        READ (13,*)
+        DO i=1,34,1
+            READ (13,*) cases(i,:)
+        ENDDO
+        DO i=1,34,1
+            temp1(1:3) = (/cases(i,1:3)/)
+            temp2(1:3) = (/cases(i,4:6)/)
+            deltares = dE_single(temp1, temp2)
+            PRINT "(i2,A21,f8.4,f8.4,f8.4)",i,adjustr("  Expected/Got/Diff: "), cases(i,39), deltares, cases(i,39)-deltares
+        ENDDO
+    ENDSUBROUTINE test
+!-------------------------------------------------------------------------------
+    FUNCTION RGB2sRGB(RGB) result(sRGB)
         IMPLICIT none
         INTEGER, DIMENSION(3), INTENT(in) :: RGB
         REAL(KIND=8), DIMENSION(3) :: sRGB
@@ -88,45 +97,40 @@ CONTAINS
             ENDIF
         ENDFUNCTION ft
         
-    FUNCTION XYZ2LABCH(XYZ) RESULT(LABCH)
+    FUNCTION XYZ2LAB(XYZ) RESULT(LAB)
+        IMPLICIT none
         REAL(kind=8), DIMENSION(3), INTENT(in) :: XYZ
-        REAL(kind=8), DIMENSION(5) :: LABCH
+        REAL(kind=8), DIMENSION(3) :: LAB
         !#CIE XYZ tristimulus values of the reference white point
         REAL(kind=8) :: Xn=0.95047,Yn=1.00000,Zn=1.08883
         !L = 116.0*ft(Y/Yn) - 16
         !A = 500.0*(ft(X/Xn) - ft(Y/Yn))
         !B = 200.0*(ft(Y/Yn) - ft(Z/Zn))
-        !C = sqrt((A**2)+(B**2))
-        !H = atan2(B,A) ! *!*
-        
         !XYZ   = [1X, 2Y, 3Z]
-        !LABCH = [1L, 2A, 3B, 4C, 5H]
+        !LAB = [1L, 2A, 3B]
         
-        LABCH(1) = 116.0*ft(XYZ(2)/Yn) - 16
-        LABCH(2) = 500.0*(ft(XYZ(1)/Xn) - ft(XYZ(2)/Yn))
-        LABCH(3) = 200.0*(ft(XYZ(2)/Yn) - ft(XYZ(3)/Zn))
-        LABCH(4) = sqrt((LABCH(2)**2)+(LABCH(3)**2))
-        LABCH(5) = atan2(LABCH(3),LABCH(2))
-    ENDFUNCTION XYZ2LABCH
+        LAB(1) = 116.0*ft(XYZ(2)/Yn) - 16
+        LAB(2) = 500.0*(ft(XYZ(1)/Xn) - ft(XYZ(2)/Yn))
+        LAB(3) = 200.0*(ft(XYZ(2)/Yn) - ft(XYZ(3)/Zn))
+    ENDFUNCTION XYZ2LAB
 !-------------------------------------------------------------------------------    
     !Given two colours, ref and poll, returns their deltaE (difference)
     !http://en.wikipedia.org/wiki/ΔE_(color_space)#CIEDE2000
-    !REAL(kind=4) FUNCTION dE_single(ref_LABCH, poll_LABCH)
-    REAL(kind=8) FUNCTION dE_single(rL, pL)
+    !REAL(kind=4) FUNCTION dE_single(ref_LAB, poll_LAB)
+    REAL(kind=8) FUNCTION dE_single(rL, pL) result(dE00)
         IMPLICIT NONE
-        !REAL(kind=4), DIMENSION(5), INTENT(in) :: ref_LABCH, poll_LABCH
-        REAL(kind=8), DIMENSION(5), INTENT(in) :: rL, pL
+        !REAL(kind=4), DIMENSION(3), INTENT(in) :: ref_LAB, poll_LAB
+        REAL(kind=8), DIMENSION(3), INTENT(in) :: rL, pL
         REAL(kind=8), PARAMETER :: PI = 3.1415926535898
         REAL(kind=8), PARAMETER :: deg2rad = PI/180.0
         REAL(kind=8), PARAMETER :: rad2deg = 180.0/PI
-        
-        !REAL(kind=8) :: dLp, Lbar, Cbar, a1p, a2p, C1s, C2s, dCp, Cbarp, h1_h2, &
-        !                h1p, h2p, dhp, dHHp, HHbarp, T, S_L, S_C, S_H, R_t, d0, R_C, dE00
         REAL(KIND=8) :: c1s_ab, c2s_ab, Csbar_ab, G, a1p, a2p, C1p, C2p, h1p, h2p, h2p_h1p, &
                         dLp, dCp, dhp, dHHp, Lbarp, Cbarp, h1ph2p, h1p_h2p, hbarp, T, d0, &
-                        R_C, S_L, S_C, S_H, R_T, K_L, K_C, K_H, dE00
+                        R_C, S_L, S_C, S_H, R_T, K_L, K_C, K_H!, dE00
+        !REAL(KIND=8), intent(out) :: DE00
+        
         !2 = poll, 1 = ref
-        !LABCH = [1L, 2a, 3b, 4C, 5h]
+        !LAB = [1L, 2a, 3b]
         
         C1s_ab = sqrt((rL(2)**2) + (rL(3)**2))
         C2s_ab = sqrt((pL(2)**2) + (pL(3)**2))
@@ -159,9 +163,7 @@ CONTAINS
             ENDIF
             h2p = h2p*rad2deg
         ENDIF
-
-
-
+        
         dLp = pL(1) - rL(1)
         dCp = C2p - C1p
         
@@ -183,6 +185,7 @@ CONTAINS
         
         h1ph2p = h1p + h2p
         h1p_h2p = h1p - h2p
+        
         IF (C1p*C2p == 0) THEN
             hbarp = h1ph2p
         ELSEIF (abs(h1p_h2p) <= 180.0) THEN
@@ -211,41 +214,15 @@ CONTAINS
         K_H = 1
         
         dE00 = sqrt((dLp/(K_L*S_L))**2 + (dCp/(K_C*S_C))**2 + (dHHp/(K_H*S_H))**2 + R_T*(dCp/(K_C*S_C))*(dHHp/(K_H*S_H)))
-        
-        
-        
-        print"(Af0.4)","L1      ",rL(1)
-        print"(Af0.4)","L2      ",PL(1)
-        print"(Af0.4)","a1      ",rL(2)
-        print"(Af0.4)","a2      ",pL(2)
-        print"(Af0.4)","b1      ",rL(3)
-        print"(Af0.4)","b2      ",pL(3)
-        print"(Af0.4)","a1p     ",a1p
-        print"(Af0.4)","a2p     ",a2p
-        print"(Af0.4)","c1p     ",c1p
-        print"(Af0.4)","c2p     ",c2p
-        print"(Af0.4)","h1p     ",h1p
-        print"(Af0.4)","h2p     ",h2p
-        print"(Af0.4)","hbarp   ",hbarp
-        print"(Af0.4)","G       ",G
-        print"(Af0.4)","T       ",T
-        print"(Af0.4)","S_L     ",S_L
-        print"(Af0.4)","S_C     ",S_C
-        print"(Af0.4)","S_H     ",S_H
-        print"(Af0.4)","R_T     ",R_T
-        print"(Af0.4)","de00    ",de00
-        
     ENDFUNCTION dE_single
     
 !-------------------------------------------------------------------------------    
     !Given one colour (ref) and an array of colours (polls), return the 
-    !FUNCTION dE_multi(ref_LABCH, [poll_LABCH])
+    !FUNCTION dE_multi(ref_LAB, [poll_LAB])
         
     !ENDFUNCTION dE_multi
     
 !-------------------------------------------------------------------------------    
-
-
 ENDPROGRAM DeltaE
     
     
