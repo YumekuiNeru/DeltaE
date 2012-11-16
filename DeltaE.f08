@@ -5,30 +5,41 @@ PROGRAM DeltaE
     INTEGER, DIMENSION(3) :: RGB1,RGB2
     REAL(kind=8) :: diff
     
-    RGB1 = (/136, 220, 73/) !reference colour
-    RGB2 = (/88, 99, 111/) !colour to compare to
     
-    sRGB1 = RGB2sRGB(RGB1)
-    sRGB2 = RGB2sRGB(RGB2)
+    !RGB1 = (/136, 220, 73/) !reference colour
+    !RGB2 = (/88, 99, 111/) !colour to compare to
     
-    XYZ1 = sRGB2XYZ(sRGB1)
-    XYZ2 = sRGB2XYZ(sRGB2)
+    !sRGB1 = RGB2sRGB(RGB1)
+    !sRGB2 = RGB2sRGB(RGB2)
     
-    LABCH1 = XYZ2LABCH(XYZ1)
-    LABCH2 = XYZ2LABCH(XYZ2)
+    !XYZ1 = sRGB2XYZ(sRGB1)
+    !XYZ2 = sRGB2XYZ(sRGB2)
+    
+    !LABCH1 = XYZ2LABCH(XYZ1)
+    !LABCH2 = XYZ2LABCH(XYZ2)
+    REAL(kind=8) :: l1,a1,b1,c1, l2,a2,b2,c2
+    l1 = 50.000
+    l2 = l1
+    a1 = 2.6772
+    a2 = 0.0000
+    b1 = -79.7751
+    b2 = -82.7485
+    c1 = sqrt(a1**2 + b1**2)
+    c2 = sqrt(a2**2 + b2**2)
+    LABCH1 = (/l1,a1,b1,c1,0.0_8/)
+    LABCH2 = (/l2,a2,b2,c2,0.0_8/)
     
     diff = dE_single(LABCH1, LABCH2)
-    PRINT*,""
-    PRINT*,"Colour 1:",RGB1
-    PRINT*,"Colour 1:",LABCH1
+    !PRINT*,""
+    !PRINT*,"Colour 1:",RGB1
+    !PRINT*,"Colour 1:",LABCH1
     
-    PRINT*,"Colour 2:",RGB2
-    PRINT*,"Colour 2:",LABCH2
+    !PRINT*,"Colour 2:",RGB2
+    !PRINT*,"Colour 2:",LABCH2
     
-    PRINT*,"Colourdifference (lower=less diff): ",diff
+    !PRINT*,"Colourdifference (lower=less diff): ",diff
     
 CONTAINS
-!-------------------------------------------------------------------------------
         FUNCTION RGB2sRGB(RGB) result(sRGB)
         IMPLICIT none
         INTEGER, DIMENSION(3), INTENT(in) :: RGB
@@ -52,9 +63,6 @@ CONTAINS
         !component(1,:) = (/0.4124,0.3576,0.1805/)
         !component(2,:) = (/0.2126,0.7152,0.0722/) ! <-- Matrix will look like this and stuffs =w=
         !component(3,:) = (/0.0193,0.1192,0.9505/)
-        !print*,component(1,:)
-        !print*,component(2,:)
-        !print*,component(3,:)
         
         CLIN = sRGB
         DO i=1,3,1
@@ -71,21 +79,15 @@ CONTAINS
         REAL(kind=8) FUNCTION ft(t) result(res)
             IMPLICIT none
             REAL(kind=8), intent(in) :: t
-            REAL(kind=8) :: A=(6./29.)**3.0,& 
-                            B=(29./6.)**(2.),&
-                            C=4./29.,& 
-                            one_third=1.0/3.0 !to be honest, 1./3. is used twice.
-            !IF (t > ((6./29.)**(3.))) THEN
-            !    return (t**(1./3.))
-            !ELSE
-            !    return ((1./3.)*((29./6.)**(2.))*t+(4./29.))
-            !ENDIF
-            IF (t > A) THEN
+            REAL(kind=8) :: one_third=1.0/3.0 
+            
+            IF (t > (6./29.)**3.0) THEN
                 res = t**one_third
             ELSE
-                res = one_third*B*t+C
+                res = one_third*((29./6.)**(2.))*t + 4./29.
             ENDIF
         ENDFUNCTION ft
+        
     FUNCTION XYZ2LABCH(XYZ) RESULT(LABCH)
         REAL(kind=8), DIMENSION(3), INTENT(in) :: XYZ
         REAL(kind=8), DIMENSION(5) :: LABCH
@@ -107,12 +109,6 @@ CONTAINS
         LABCH(5) = atan2(LABCH(3),LABCH(2))
     ENDFUNCTION XYZ2LABCH
 !-------------------------------------------------------------------------------    
-        REAL(kind=8) FUNCTION rad(deg) result(res)
-            IMPLICIT None
-            REAL(kind=8), PARAMETER :: PI = 3.1415926535898
-            REAL(kind=8), intent(in) :: deg
-            res = (deg/180.0)*pi
-        ENDFUNCTION rad
     !Given two colours, ref and poll, returns their deltaE (difference)
     !http://en.wikipedia.org/wiki/ΔE_(color_space)#CIEDE2000
     !REAL(kind=4) FUNCTION dE_single(ref_LABCH, poll_LABCH)
@@ -121,88 +117,124 @@ CONTAINS
         !REAL(kind=4), DIMENSION(5), INTENT(in) :: ref_LABCH, poll_LABCH
         REAL(kind=8), DIMENSION(5), INTENT(in) :: rL, pL
         REAL(kind=8), PARAMETER :: PI = 3.1415926535898
-        REAL(kind=8) :: dLp, Lbar, Cbar, a1p, a2p, C1p, C2p, dCp, Cbarp, h1_h2, &
-                        h1p, h2p, dhp, dHHp, HHbarp, T, S_L, S_C, S_H, R_t, d0, R_C, dE00
+        REAL(kind=8), PARAMETER :: deg2rad = PI/180.0
+        REAL(kind=8), PARAMETER :: rad2deg = 180.0/PI
+        
+        !REAL(kind=8) :: dLp, Lbar, Cbar, a1p, a2p, C1s, C2s, dCp, Cbarp, h1_h2, &
+        !                h1p, h2p, dhp, dHHp, HHbarp, T, S_L, S_C, S_H, R_t, d0, R_C, dE00
+        REAL(KIND=8) :: c1s_ab, c2s_ab, Csbar_ab, G, a1p, a2p, C1p, C2p, h1p, h2p, h2p_h1p, &
+                        dLp, dCp, dhp, dHHp, Lbarp, Cbarp, h1ph2p, h1p_h2p, hbarp, T, d0, &
+                        R_C, S_L, S_C, S_H, R_T, K_L, K_C, K_H, dE00
         !2 = poll, 1 = ref
         !LABCH = [1L, 2a, 3b, 4C, 5h]
         
-        !dLp = L2 - L1
-        dLp = pL(1) - rL(1)
-        !Lbar = (L1 + L2)/2
-        Lbar = (rL(1) + pL(1))/2.0
-        Cbar = (rL(4) + pL(4))/2.0
+        C1s_ab = sqrt((rL(2)**2) + (rL(3)**2))
+        C2s_ab = sqrt((pL(2)**2) + (pL(3)**2))
         
-        a1p = rL(2) + (rL(2)/2.0)*(1.0-sqrt((Cbar**7)/((Cbar**7)+(25.0**7))))
-        a2p = pL(2) + (pL(2)/2.0)*(1.0-sqrt((Cbar**7)/((Cbar**7)+(25.0**7))))
-        C1p = sqrt((a1p**2) + (rL(3)**2))
-        C2p = sqrt((a2p**2) + (pL(3)**2))
-        dCp = C2p - C1p
-        Cbarp = (C1p + C2p)/2.0
+        Csbar_ab = (C1s_ab + C2s_ab)/2.0
         
-        IF (a1p == 0 .AND. rL(3) == 0) THEN
+        G = 0.5*(1.0-sqrt((Csbar_ab**7)/(Csbar_ab**7+25.0**7)))
+        
+        a1p = (1+G)*rL(2)
+        a2p = (1+G)*pL(2)
+        
+        C1p = sqrt(a1p**2 + rL(3)**2)
+        C2p = sqrt(a2p**2 + pL(3)**2)
+        
+        IF (rL(3) == 0 .AND. a1p == 0) THEN
             h1p = 0
         ELSE
             h1p = atan2(rL(3),a1p)
-            !print*,h1p,"h1p"
             IF (h1p < 0) THEN
                 h1p = h1p + 2*pi
             ENDIF
-            h1p = mod((180.0/pi)*h1p, 360.0)
-            !print*,h1p,"h1p"
+            h1p = h1p*rad2deg
         ENDIF
-        
-        IF (a2p == 0 .AND. pL(3) == 0) THEN
-            h2p = 0
-        ELSE
+        IF (pL(3) == 0 .AND. a2p == 0) THEN
+            h1p = 0
+        ELSE 
             h2p = atan2(pL(3),a2p)
-            !print*,h2p,"h2p"
             IF (h2p < 0) THEN
                 h2p = h2p + 2*pi
             ENDIF
-            h2p = mod((180.0/pi)*h2p, 360.0)
-            !print*,h2p,"h2p"
+            h2p = h2p*rad2deg
         ENDIF
+
+
+
+        dLp = pL(1) - rL(1)
+        dCp = C2p - C1p
         
-        IF (C1p == 0 .OR. C2p == 0) THEN
+        h2p_h1p = h2p - h1p
+        IF (C1p*C2p == 0) THEN
             dhp = 0
-        ELSE
-            h1_h2 = abs(h1p-h2p)
-            IF (h1_h2 <= 180.0) THEN
-                dhp = h2p - h1p
-            ELSEIF ((h2p - h1p) > 180.0) THEN
-                dhp = (h2p-h1p)-360.0
-            ELSEIF ((h2p-h1p) < -180.0) THEN
-                dhp = (h2p-h1p)+360.0
-            ENDIF
+        ELSEIF (abs(h2p_h1p) <= 180) THEN
+            dhp = h2p_h1p
+        ELSEIF (h2p_h1p > 180) THEN
+            dhp = h2p_h1p - 360
+        ELSEIF (h2p_h1p < -180) THEN
+            dhp = h2p_h1p + 360
         ENDIF
-        !dH' *and not* dh'
-        dHHp = 2.0*sqrt(C1p*C2p)*sin(rad(dhp/2.0))
+        dHHp = 2.0*sqrt(C1p*C2p)*sin(dhp*deg2rad/2.0)
         
         
-        IF (C1p == 0 .OR. C2p == 0) THEN
-            HHbarp = h1p + h2p
-        ELSEIF (abs(h1p-h2p) <= 180.0) THEN
-            HHbarp = (h1p + h2p)/2.0
-        ELSEIF (abs(h1p - h2p) > 180.0 .AND. ((h1p+h2p) < 360.0)) THEN
-            HHbarp = (h1p + h2p + 360.0)/2.0
-        ELSEIF (abs(h1p - h2p) > 180.0 .AND. ((h1p + h2p) >= 360.0)) THEN
-            HHbarp = (h1p + h2p - 360.0)/2.0
+        Lbarp = (rL(1) + pL(1))/2.0
+        Cbarp = (C1p + C2p)/2.0
+        
+        h1ph2p = h1p + h2p
+        h1p_h2p = h1p - h2p
+        IF (C1p*C2p == 0) THEN
+            hbarp = h1ph2p
+        ELSEIF (abs(h1p_h2p) <= 180.0) THEN
+            hbarp = (h1ph2p)/2.0
+        ELSEIF (abs(h1p_h2p) > 180.0 .AND. (h1ph2p < 360.0)) THEN
+            hbarp = (h1ph2p + 360.0)/2.0
+        ELSEIF (abs(h1p_h2p) > 180.0 .AND. (h1ph2p >= 360.0)) THEN
+            hbarp = (h1ph2p - 360.0)/2.0
         ENDIF
         
-        T = 1.0 - 0.17*cos(rad(HHbarp-30.0))+0.24*cos(rad(2*HHbarp))+0.32*cos(rad(3*HHbarp+6.0))-0.20*cos(rad(4*HHbarp-63.0))
+        T = 1 - 0.17*cos(deg2rad*(hbarp-30.0)) + 0.24*cos(deg2rad*(2*hbarp)) + &
+            0.32*cos(deg2rad*(3*hbarp + 6.0)) - 0.20*cos(deg2rad*(4*hbarp-63.0))
         
-        S_L = 1.0 + (0.015*((Lbar-50)**2))/(sqrt(20.0+((Lbar-50.0)**2)))
+        d0 = 30.0*exp(-((hbarp-275.0)/25.0)**2.0)
+        
+        R_C = 2*sqrt((Cbarp**7.0)/((Cbarp**7)+25.0**7))
+        
+        S_L = 1.0 + ((0.015*((Lbarp-50)**2))/(sqrt(20.0+((Lbarp-50.0)**2))))
         S_C = 1.0 + 0.045*Cbarp
         S_H = 1.0 + 0.015*Cbarp*T
         
-        R_C = 2*sqrt((Cbarp**7)/((Cbarp**7)+25.0**7))
-        print*,R_C
-        d0 = 30.0**(-(((HHbarp-275.0)/25.0)**2))
-        print*,d0
-        R_T = -R_C*sin(rad(2*d0))
-        !R_T = -2.0*sqrt((Cbarp**7)/((Cbarp**7)+(25.0**7)))*sin(60.0**(-((HHbarp-275.0)/(25))**2))
+        R_T = -sin(deg2rad*(2.0*d0))*R_C
         
-        dE00 = sqrt(((dLp/(S_L))**2) + ((dCp/(S_C))**2) + ((dHp/S_h)**2) + R_T*((dCp/S_C)*(dHp/S_H)))
+        K_L = 1
+        K_C = 1
+        K_H = 1
+        
+        dE00 = sqrt((dLp/(K_L*S_L))**2 + (dCp/(K_C*S_C))**2 + (dHHp/(K_H*S_H))**2 + R_T*(dCp/(K_C*S_C))*(dHHp/(K_H*S_H)))
+        
+        
+        
+        print"(Af0.4)","L1      ",rL(1)
+        print"(Af0.4)","L2      ",PL(1)
+        print"(Af0.4)","a1      ",rL(2)
+        print"(Af0.4)","a2      ",pL(2)
+        print"(Af0.4)","b1      ",rL(3)
+        print"(Af0.4)","b2      ",pL(3)
+        print"(Af0.4)","a1p     ",a1p
+        print"(Af0.4)","a2p     ",a2p
+        print"(Af0.4)","c1p     ",c1p
+        print"(Af0.4)","c2p     ",c2p
+        print"(Af0.4)","h1p     ",h1p
+        print"(Af0.4)","h2p     ",h2p
+        print"(Af0.4)","hbarp   ",hbarp
+        print"(Af0.4)","G       ",G
+        print"(Af0.4)","T       ",T
+        print"(Af0.4)","S_L     ",S_L
+        print"(Af0.4)","S_C     ",S_C
+        print"(Af0.4)","S_H     ",S_H
+        print"(Af0.4)","R_T     ",R_T
+        print"(Af0.4)","de00    ",de00
+        
     ENDFUNCTION dE_single
     
 !-------------------------------------------------------------------------------    
