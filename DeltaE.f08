@@ -2,6 +2,7 @@ PROGRAM DeltaE
     IMPLICIT none
     REAL(kind=8), DIMENSION(3) :: sRGB1, sRGB2, XYZ1, XYZ2, LAB1, LAB2
     INTEGER, DIMENSION(3) :: RGB1,RGB2
+    INTEGER :: testing = 0
     REAL(kind=8) :: diff
     !RGB1 = (/136, 220, 73/) !reference colour
     !RGB2 = (/88, 99, 111/) !colour to compare to
@@ -30,8 +31,8 @@ CONTAINS
         IMPLICIT None
         REAL(KIND=8), DIMENSION(34,39) :: cases
         REAL(KIND=8), DIMENSION(3) :: temp1, temp2
-        REAL(KIND=8) :: deltares
-        INTEGER :: i
+        REAL(KIND=8) :: deltares, diff
+        INTEGER :: i,j
         
         !L1,a1,b1,L2,a2,b2,C1,C2,C_ave,G,L1',a1',b1',L2',a2',b2',C1',C2',
         !h1',h2',dh',dL',dC',dH',L'_ave,C'_ave,h'_ave,(L'_ave-50)^2,
@@ -45,7 +46,34 @@ CONTAINS
             temp1(1:3) = (/cases(i,1:3)/)
             temp2(1:3) = (/cases(i,4:6)/)
             deltares = dE_single(temp1, temp2)
-            PRINT "(i2,A21,f8.4,f8.4,f8.4)",i,adjustr("  Expected/Got/Diff: "), cases(i,39), deltares, cases(i,39)-deltares
+            diff = cases(i,39) - deltares
+            PRINT "(i2,A21,f8.4,f8.4,f8.4)",i,adjustr("  Expected/Got/Diff: "), cases(i,39), deltares, diff            
+            IF (abs(0-diff) > 0.0001) THEN
+                testing = 1
+                deltares = dE_single(temp1, temp2)
+                testing = 0
+                PRINT"(A)","... but testcase expected:"
+                print"(Af8.4)","L1      ",cases(i,1)
+                print"(Af8.4)","L2      ",cases(i,4)
+                print"(Af8.4)","a1      ",cases(i,2)
+                print"(Af8.4)","a2      ",cases(i,5)
+                print"(Af8.4)","b1      ",cases(i,3)
+                print"(Af8.4)","b2      ",cases(i,6)
+                print"(Af8.4)","a1p     ",cases(i,12)
+                print"(Af8.4)","a2p     ",cases(i,15)
+                print"(Af8.4)","c1p     ",cases(i,17)
+                print"(Af8.4)","c2p     ",cases(i,18)
+                print"(Af8.4)","h1p     ",cases(i,19)
+                print"(Af8.4)","h2p     ",cases(i,20)
+                print"(Af8.4)","hbarp   ",cases(i,27)
+                print"(Af8.4)","G       ",cases(i,10)
+                print"(Af8.4)","T       ",cases(i,32)
+                print"(Af8.4)","S_L     ",cases(i,30)
+                print"(Af8.4)","S_C     ",cases(i,31)
+                print"(Af8.4)","S_H     ",cases(i,33)
+                print"(Af8.4)","R_T     ",cases(i,34)
+                print"(Af8.4)","de00    ",cases(i,39)
+            ENDIF
         ENDDO
     ENDSUBROUTINE test
 !-------------------------------------------------------------------------------
@@ -124,6 +152,7 @@ CONTAINS
         REAL(kind=8), PARAMETER :: PI = 3.1415926535898
         REAL(kind=8), PARAMETER :: deg2rad = PI/180.0
         REAL(kind=8), PARAMETER :: rad2deg = 180.0/PI
+        REAL(KIND=8), PARAMETER :: PRECISE = 0.0001
         REAL(KIND=8) :: c1s_ab, c2s_ab, Csbar_ab, G, a1p, a2p, C1p, C2p, h1p, h2p, h2p_h1p, &
                         dLp, dCp, dhp, dHHp, Lbarp, Cbarp, h1ph2p, h1p_h2p, hbarp, T, d0, &
                         R_C, S_L, S_C, S_H, R_T, K_L, K_C, K_H!, dE00
@@ -152,16 +181,16 @@ CONTAINS
             IF (h1p < 0) THEN
                 h1p = h1p + 2*pi
             ENDIF
-            h1p = h1p*rad2deg
+            h1p = rad2deg*h1p
         ENDIF
         IF (pL(3) == 0 .AND. a2p == 0) THEN
-            h1p = 0
+            h2p = 0
         ELSE 
             h2p = atan2(pL(3),a2p)
             IF (h2p < 0) THEN
                 h2p = h2p + 2*pi
             ENDIF
-            h2p = h2p*rad2deg
+            h2p = rad2deg*h2p
         ENDIF
         
         dLp = pL(1) - rL(1)
@@ -177,7 +206,7 @@ CONTAINS
         ELSEIF (h2p_h1p < -180) THEN
             dhp = h2p_h1p + 360
         ENDIF
-        dHHp = 2.0*sqrt(C1p*C2p)*sin(dhp*deg2rad/2.0)
+        dHHp = 2.0*sqrt(C1p*C2p)*sin(deg2rad*dhp/2.0)
         
         
         Lbarp = (rL(1) + pL(1))/2.0
@@ -185,14 +214,24 @@ CONTAINS
         
         h1ph2p = h1p + h2p
         h1p_h2p = h1p - h2p
-        
-        IF (C1p*C2p == 0) THEN
+        !Change comparisons so that "delta < 0.0001" is sufficient to pass
+        !PRINT *,abs(h1p_h2p)
+        !IF (C1p == 0 .OR. C2p == 0) THEN
+        !    hbarp = h1ph2p
+        !ELSEIF (abs(h1p_h2p) <= 180.0) THEN
+        !    hbarp = (h1ph2p)/2.0
+        !ELSEIF (abs(h1p_h2p) > 180.0 .AND. (h1ph2p < 360.0)) THEN
+        !    hbarp = (h1ph2p + 360.0)/2.0
+        !ELSEIF (abs(h1p_h2p) > 180.0 .AND. (h1ph2p >= 360.0)) THEN
+        !    hbarp = (h1ph2p - 360.0)/2.0
+        !ENDIF
+        IF (C1p == 0 .OR. C2p == 0) THEN
             hbarp = h1ph2p
-        ELSEIF (abs(h1p_h2p) <= 180.0) THEN
+        ELSEIF (abs(h1p_h2p) - 180 <= PRECISE) THEN
             hbarp = (h1ph2p)/2.0
-        ELSEIF (abs(h1p_h2p) > 180.0 .AND. (h1ph2p < 360.0)) THEN
+        ELSEIF (abs(h1p_h2p) - 180 > PRECISE .AND. (h1ph2p - 360 < PRECISE)) THEN
             hbarp = (h1ph2p + 360.0)/2.0
-        ELSEIF (abs(h1p_h2p) > 180.0 .AND. (h1ph2p >= 360.0)) THEN
+        ELSEIF (abs(h1p_h2p) - 180 > PRECISE .AND. (h1ph2p - 360 >= PRECISE)) THEN
             hbarp = (h1ph2p - 360.0)/2.0
         ENDIF
         
@@ -214,6 +253,29 @@ CONTAINS
         K_H = 1
         
         dE00 = sqrt((dLp/(K_L*S_L))**2 + (dCp/(K_C*S_C))**2 + (dHHp/(K_H*S_H))**2 + R_T*(dCp/(K_C*S_C))*(dHHp/(K_H*S_H)))
+
+            !PRINT"(A)","Testcase results:"
+            !print"(Af8.4)","L1      ",rL(1)
+            !print"(Af8.4)","L2      ",pL(1)
+            !print"(Af8.4)","a1      ",rL(2)
+            !print"(Af8.4)","a2      ",pL(2)
+            !print"(Af8.4)","b1      ",rL(3)
+            !print"(Af8.4)","b2      ",pL(3)
+            !print"(Af8.4)","a1p     ",a1p
+            !print"(Af8.4)","a2p     ",a2p
+            !print"(Af8.4)","c1p     ",c1p
+            !print"(Af8.4)","c2p     ",c2p
+            !print"(Af8.4)","h1p     ",h1p
+            !print"(Af8.4)","h2p     ",h2p
+            !print"(Af8.4)","hbarp   ",hbarp
+            !print"(Af8.4)","G       ",G
+            !print"(Af8.4)","T       ",T
+            !print"(Af8.4)","S_L     ",S_L
+            !print"(Af8.4)","S_C     ",S_C
+            !print"(Af8.4)","S_H     ",S_H
+            !print"(Af8.4)","R_T     ",R_T
+            !print"(Af8.4)","de00    ",de00
+
     ENDFUNCTION dE_single
     
 !-------------------------------------------------------------------------------    
