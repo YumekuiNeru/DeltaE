@@ -1,9 +1,9 @@
 PROGRAM DeltaE
     IMPLICIT none
-    REAL(KIND=8), DIMENSION(3) :: sRGB1, sRGB2, XYZ1, XYZ2, Lab1, Lab2
+    REAL(KIND=4), DIMENSION(3) :: sRGB1, sRGB2, XYZ1, XYZ2, Lab1, Lab2
     INTEGER, DIMENSION(3) :: RGB1,RGB2
     INTEGER :: testing = 0
-    REAL(KIND=8) :: diff
+    REAL(KIND=4) :: diff
     !RGB1 = (/136, 220, 73/) !reference colour
     !RGB2 = (/88, 99, 111/) !colour to compare to
     
@@ -29,9 +29,9 @@ PROGRAM DeltaE
 CONTAINS
     SUBROUTINE test()
         IMPLICIT none
-        REAL(KIND=8), DIMENSION(34,39) :: cases
-        REAL(KIND=8), DIMENSION(3) :: temp1, temp2
-        REAL(KIND=8) :: deltares, diff
+        REAL(KIND=4), DIMENSION(34,39) :: cases
+        REAL(KIND=4), DIMENSION(3) :: temp1, temp2
+        REAL(KIND=4) :: deltares, diff
         INTEGER :: i
         
         ! 1   2   3   4   5   6   7   8  ...   39 
@@ -54,20 +54,20 @@ CONTAINS
     FUNCTION RGB2sRGB(RGB) result(sRGB)
         IMPLICIT none
         INTEGER, DIMENSION(3), INTENT(in) :: RGB
-        REAL(KIND=8), DIMENSION(3) :: sRGB
+        REAL(KIND=4), DIMENSION(3) :: sRGB
         sRGB = RGB/255.0
     ENDFUNCTION RGB2sRGB
 !-------------------------------------------------------------------------------
     FUNCTION sRGB2XYZ(sRGB) RESULT(XYZ)
         IMPLICIT none
-        REAL(KIND=8), DIMENSION(3), intent(in) :: sRGB
-        REAL(KIND=8), DIMENSION(3) :: XYZ, CLIN
-        REAL(KIND=8), DIMENSION(3,3) :: component
-        REAL(KIND=8) :: a=0.055, C
+        REAL(KIND=4), DIMENSION(3), intent(in) :: sRGB
+        REAL(KIND=4), DIMENSION(3) :: XYZ, CLIN
+        REAL(KIND=4), DIMENSION(3,3) :: component
+        REAL(KIND=4) :: a=0.055, C
         INTEGER :: i
 
         !sRGB D65
-        data component /0.4124564,0.2126729,0.0193339,&
+        DATA component /0.4124564,0.2126729,0.0193339,&
                         0.3575761,0.7151522,0.1191920,& !<-- do not read this as a matrix
                         0.1804375,0.0721750,0.9503041/
         !component(1,:) = (/0.4124,0.3576,0.1805/)
@@ -86,10 +86,10 @@ CONTAINS
         XYZ = matmul(component,CLIN)
     ENDFUNCTION sRGB2XYZ        
 !-------------------------------------------------------------------------------
-        REAL(KIND=8) FUNCTION ft(t) result(res)
+        REAL(KIND=4) FUNCTION ft(t) result(res)
             IMPLICIT none
-            REAL(KIND=8), intent(in) :: t
-            REAL(KIND=8) :: one_third=1.0/3.0 
+            REAL(KIND=4), intent(in) :: t
+            REAL(KIND=4) :: one_third=1.0/3.0 
             
             IF (t > (6./29.)**3.0) THEN
                 res = t**one_third
@@ -100,10 +100,10 @@ CONTAINS
         
     FUNCTION XYZ2Lab(XYZ) RESULT(Lab)
         IMPLICIT none
-        REAL(KIND=8), DIMENSION(3), INTENT(in) :: XYZ
-        REAL(KIND=8), DIMENSION(3) :: Lab
+        REAL(KIND=4), DIMENSION(3), INTENT(in) :: XYZ
+        REAL(KIND=4), DIMENSION(3) :: Lab
         !#CIE XYZ tristimulus values of the reference white point
-        REAL(KIND=8) :: Xn=0.95047,Yn=1.00000,Zn=1.08883
+        REAL(KIND=4) :: Xn=0.95047,Yn=1.00000,Zn=1.08883
         
         !L = 116.0*ft(Y/Yn) - 16
         !a = 500.0*(ft(X/Xn) - ft(Y/Yn))
@@ -115,17 +115,14 @@ CONTAINS
     ENDFUNCTION XYZ2Lab
 !-------------------------------------------------------------------------------    
     !Given two colours, ref and poll, returns their deltaE (difference)
-    !http://en.wikipedia.org/wiki/ΔE_(color_space)#CIEDE2000
-    !REAL(KIND=4) FUNCTION dE_single(ref_Lab, poll_Lab)
-    REAL(KIND=8) FUNCTION dE_single(rL, pL) result(dE00)
-        IMPLICIT none
-        !REAL(KIND=4), DIMENSION(3), INTENT(in) :: ref_Lab, poll_Lab
-        REAL(KIND=8), DIMENSION(3), INTENT(in) :: rL, pL
-        REAL(KIND=8), PARAMETER :: PI = 3.1415926535898
-        REAL(KIND=8), PARAMETER :: deg2rad = PI/180.0
-        REAL(KIND=8), PARAMETER :: rad2deg = 180.0/PI
-        REAL(KIND=8), PARAMETER :: PRECISE = 0.0001
-        REAL(KIND=8) :: c1s_ab, c2s_ab, Csbar_ab, G, a1p, a2p, C1p, C2p, h1p, h2p, h2p_h1p, &
+    REAL(KIND=4) FUNCTION dE_single(rL, pL) result(dE00)
+        IMPLICIT none                  
+        REAL(KIND=4), DIMENSION(3), INTENT(in) :: rL, pL !ref_Lab, poll_Lab
+        REAL(KIND=4), PARAMETER :: PI = 3.1415926535898
+        REAL(KIND=4), PARAMETER :: deg2rad = PI/180.0
+        REAL(KIND=4), PARAMETER :: rad2deg = 180.0/PI
+        REAL(KIND=4), PARAMETER :: PRECISE = 0.0001
+        REAL(KIND=4) :: c1s_ab, c2s_ab, Csbar_ab, G, a1p, a2p, C1p, C2p, h1p, h2p, h2p_h1p, &
                         dLp, dCp, dhp, dHHp, Lbarp, Cbarp, h1ph2p, h1p_h2p, hbarp, T, d0, &
                         R_C, S_L, S_C, S_H, R_T, K_L, K_C, K_H
         
@@ -167,14 +164,14 @@ CONTAINS
         dCp = C2p - C1p
         
         h2p_h1p = h2p - h1p
-        !Probably room for floating point errors *******
+
         IF (C1p*C2p == 0) THEN
             dhp = 0
-        ELSEIF (abs(h2p_h1p) <= 180) THEN
+        ELSEIF (abs(h2p_h1p) - 180 <= PRECISE) THEN
             dhp = h2p_h1p
-        ELSEIF (h2p_h1p > 180) THEN
+        ELSEIF (h2p_h1p - 180 > PRECISE) THEN
             dhp = h2p_h1p - 360
-        ELSEIF (h2p_h1p < -180) THEN
+        ELSEIF (h2p_h1p + 180 < PRECISE) THEN
             dhp = h2p_h1p + 360
         ENDIF
         
@@ -185,17 +182,7 @@ CONTAINS
         
         h1ph2p = h1p + h2p
         h1p_h2p = h1p - h2p
-        !Change comparisons so that "delta < 0.0001" is sufficient to pass
-        !PRINT *,abs(h1p_h2p)
-        !IF (C1p == 0 .OR. C2p == 0) THEN
-        !    hbarp = h1ph2p
-        !ELSEIF (abs(h1p_h2p) <= 180.0) THEN
-        !    hbarp = (h1ph2p)/2.0
-        !ELSEIF (abs(h1p_h2p) > 180.0 .AND. (h1ph2p < 360.0)) THEN
-        !    hbarp = (h1ph2p + 360.0)/2.0
-        !ELSEIF (abs(h1p_h2p) > 180.0 .AND. (h1ph2p >= 360.0)) THEN
-        !    hbarp = (h1ph2p - 360.0)/2.0
-        !ENDIF
+
         IF (C1p == 0 .OR. C2p == 0) THEN
             hbarp = h1ph2p
         ELSEIF (abs(h1p_h2p) - 180 <= PRECISE) THEN
@@ -212,12 +199,11 @@ CONTAINS
         d0 = 30.0*exp(-((hbarp-275.0)/25.0)**2.0)
         
         R_C = 2*sqrt((Cbarp**7.0)/((Cbarp**7)+25.0**7))
+        R_T = -sin(deg2rad*(2.0*d0))*R_C
         
         S_L = 1.0 + ((0.015*((Lbarp-50)**2))/(sqrt(20.0+((Lbarp-50.0)**2))))
         S_C = 1.0 + 0.045*Cbarp
         S_H = 1.0 + 0.015*Cbarp*T
-        
-        R_T = -sin(deg2rad*(2.0*d0))*R_C
         
         K_L = 1
         K_C = 1
@@ -228,9 +214,8 @@ CONTAINS
     
 !-------------------------------------------------------------------------------    
     !Given one colour (ref) and an array of colours (polls), return the 
-    !FUNCTION dE_multi(ref_Lab, [poll_Lab])
-        
-    !ENDFUNCTION dE_multi
+    !REAL(KIND=4) FUNCTION dE_multi(rL, pL) result(dE00)
+   
     
 !-------------------------------------------------------------------------------    
 ENDPROGRAM DeltaE
