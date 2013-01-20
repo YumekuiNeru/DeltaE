@@ -1,4 +1,4 @@
 DeltaE
 ======
 
-Module(s) to calculate how visually similar colours are
+Module(s) to calculate how visually similar colours are.
